@@ -29,7 +29,24 @@ class Critter(object):
         self.name = "Critter_%d" % Critter.number_of
     
     def interact(self, other_critter):
+        '''Interact with another critter
+        >>> c1 = Critter(CheatStrategy())
+        >>> c2 = Critter(CheatStrategy())
+        >>> c1.interact(c2)
+        0
+        '''
         return self.strategy.interact(other_critter)
+    
+    def observe_interaction(self, critter1, critter1_action, 
+                            critter2, critter2_action):
+        '''
+        take into account an interaction
+        >>> c1 = Critter(CheatStrategy())
+        >>> c2 = Critter(CheatStrategy())
+        >>> c1.observe_interaction(c1,0,c2,0)
+        '''
+        self.strategy.observe_interaction(critter1, critter1_action, 
+                                          critter2, critter2_action)
     
     def add_food(self, food_amount):
         '''
@@ -69,7 +86,7 @@ class AbstractStrategy(object):
     
     def observe_interaction(self, agent1, agent1_action, agent2, agent2_action):
         '''
-        provides information to the agent about what transpired in an interaction.
+        provides information to the strategy about what transpired in an interaction.
         Does not return anything
         >>> strategy = AbstractStrategy()
         >>> strategy.observe_interaction(Critter(None), 1, Critter(None), 0)
