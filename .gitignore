@@ -1,0 +1,6 @@
+*.class
+*.pyc
+*.pyo
+.deployables
+.svn
+_svn
