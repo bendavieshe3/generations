@@ -8,8 +8,10 @@ import sys, getopt, world
 
 def main(argv):
     world_to_run = 'PrisonersDilemma'
+    track_critter = None
+    iterations = 1500
     try:
-        opts, args = getopt.getopt(argv, 'h','--help')
+        opts, args = getopt.getopt(argv, 'ht:i:','--help,--track,--iterations')
         
     except getopt.GetoptError:
         usage()
@@ -18,16 +20,30 @@ def main(argv):
         if opt in ('-h','--help'):
             usage()
             sys.exit()
+        elif opt in ('-t','--track'):
+            track_critter = arg
+        elif opt in ('-i','--iterations'):
+            iterations = int(arg)
+            
     world_to_run = "".join(args) or world_to_run
     
     print "running world %s" % world_to_run
     
-    instantiate_world(world_to_run).run()
+    xworld = instantiate_world(world_to_run)
+    xworld.add_plugin(world.TabularReporter())
+    
+    if track_critter:
+        xworld.add_plugin(world.CritterTracker(track_critter))
+    xworld.run(iterations) 
+    
     
 
 def usage():
     '''prints usage instructions'''
-    print('Usage: main.py [world]')        
+    print('Usage: main.py [world]')
+    print('options:')
+    print('-i,iterations\tNumber of iterations to run')
+    print('-t,track\ttrack a named critter')        
 
 def instantiate_world(name_of_world):
     '''instantiates the named world (class = world.[name_of_world]World)'''
