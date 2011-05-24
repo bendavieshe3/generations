@@ -3,7 +3,7 @@ Created on May 21, 2011
 
 @author: bendavies
 '''
-import critters
+import critters, strategies
 
 class World(object):
     '''
@@ -82,11 +82,11 @@ class  PrisonersDilemmaWorld(World):
         print 'simulation is commencing.'
         
         #create critter population
-        sucker = critters.Critter('s1', critters.SuckerStrategy())
-        cheater = critters.Critter('c1', critters.CheatStrategy())
-        random = critters.Critter('r1', critters.RandomStrategy())
-        grudger = critters.Critter('g1', critters.GrudgerStrategy())
-        titter = critters.Critter('t1', critters.TitForTatStrategy())
+        sucker = critters.Critter('s1', strategies.SuckerStrategy())
+        cheater = critters.Critter('c1', strategies.CheatStrategy())
+        random = critters.Critter('r1', strategies.RandomStrategy())
+        grudger = critters.Critter('g1', strategies.GrudgerStrategy())
+        titter = critters.Critter('t1', strategies.TitForTatStrategy())
         population = (sucker, cheater, random, grudger, titter)
         
         self.send_population_start(population)
@@ -109,8 +109,8 @@ class  PrisonersDilemmaWorld(World):
         runs a single iteration for population. The population itself is updated
         in the course of the exection. A population is a list of critters
         >>> world = PrisonersDilemmaWorld()
-        >>> c1 = critters.Critter('c1', critters.CheatStrategy())
-        >>> c2 = critters.Critter('c2', critters.CheatStrategy())
+        >>> c1 = critters.Critter('c1', strategies.CheatStrategy())
+        >>> c2 = critters.Critter('c2', strategies.CheatStrategy())
         >>> population = (c1,c2)
         >>> world.run_iteration(population)
         >>> population[1].food
@@ -142,16 +142,16 @@ class  PrisonersDilemmaWorld(World):
         response to the interaction, each is rewarded food (or not) based on 
         their response
         >>> world = PrisonersDilemmaWorld()
-        >>> c1 = critters.Critter('c1', critters.CheatStrategy())
-        >>> c2 = critters.Critter('c2', critters.CheatStrategy())
+        >>> c1 = critters.Critter('c1', strategies.CheatStrategy())
+        >>> c2 = critters.Critter('c2', strategies.CheatStrategy())
         >>> world.interact_critters(c1,c2)
         '''
         COOPERATE_FOOD = 3
         CHEATER_FOOD = 5
         SUCKER_FOOD = -1
         
-        COOPERATE = critters.AbstractStrategy.COOPERATE
-        UNCOOPERATE = critters.AbstractStrategy.UNCOOPERATE
+        COOPERATE = strategies.AbstractStrategy.COOPERATE
+        UNCOOPERATE = strategies.AbstractStrategy.UNCOOPERATE
         
         
         critter1_interaction = critter1.interact(critter2)
@@ -267,8 +267,8 @@ class CritterTracker(EventPlugin):
         '''
         Display a summary of what the tracked critter interacted
         '''
-        UNCOOPERATE = critters.AbstractStrategy.UNCOOPERATE
-        COOPERATE = critters.AbstractStrategy.COOPERATE
+        UNCOOPERATE = strategies.AbstractStrategy.UNCOOPERATE
+        COOPERATE = strategies.AbstractStrategy.COOPERATE
         
         print 'Detailed interaction tracking of %s:' % self.critter_name
         
