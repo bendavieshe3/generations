@@ -4,26 +4,31 @@ Created on May 24, 2011
 @author: bendavies
 '''
 
+#constants
+UNCOOPERATE = 0
+COOPERATE = 1
+    
 class AbstractStrategy(object):
     '''A strategy that provides a response to events'''
     
-    UNCOOPERATE = 0
-    COOPERATE = 1
-    
+    short_name = 'ABS'
+
     def interact(self, other_agent):
         '''
         perform an interaction with another agent and return a result code
         if not implemented in subclass, this always returns 0 for the default response
+        >>> from critters import Critter
         >>> strategy = AbstractStrategy()
         >>> strategy.interact(Critter(None, None))
         0
         '''
-        return AbstractStrategy.UNCOOPERATE
+        return UNCOOPERATE
     
     def observe_interaction(self, me, agent1, agent1_action, agent2, agent2_action):
         '''
         provides information to the strategy about what transpired in an interaction.
         Does not return anything
+        >>> from critters import Critter
         >>> strategy = AbstractStrategy()
         >>> strategy.observe_interaction(Critter(None, None), Critter(None, None), 1, Critter(None, None), 0)
         
@@ -33,6 +38,8 @@ class AbstractStrategy(object):
 class CheatStrategy(AbstractStrategy):
     '''A strategy that always fails to cooperate'''
     
+    short_name = 'CHT'
+    
     def interact(self, other_agent):
         '''
         Upon interacting this agent always fails to cooperate (ie return 0)
@@ -40,10 +47,12 @@ class CheatStrategy(AbstractStrategy):
         >>> taker_strategy.interact(None)
         0
         '''
-        return CheatStrategy.UNCOOPERATE
+        return UNCOOPERATE
     
 class SuckerStrategy(AbstractStrategy):
     '''A strategy that never fails to cooperate'''
+    
+    short_name = 'SCK'
     
     def interact(self, other_agent):
         '''
@@ -52,10 +61,12 @@ class SuckerStrategy(AbstractStrategy):
         >>> sucker_strategy.interact(None)
         1
         '''
-        return SuckerStrategy.COOPERATE
+        return COOPERATE
 
 class RandomStrategy(AbstractStrategy):
     '''A strategy that randomly decides to cooperate or not each time'''
+    
+    short_name = 'RND'
     
     def interact(self, other_agent):
         '''
@@ -69,16 +80,18 @@ class RandomStrategy(AbstractStrategy):
         '''
         
         import random
-        return random.choice((RandomStrategy.COOPERATE, 
-                             RandomStrategy.UNCOOPERATE))
+        return random.choice((COOPERATE, UNCOOPERATE))
 
 class GrudgerStrategy(AbstractStrategy):
     '''
     A strategy that never cooperates again with an agent that has failed
     to cooperate with this agent in the past
+    >>> from critters import Critter
     >>> grudger_strategy = GrudgerStrategy()
     >>> grudger = Critter('g1', grudger_strategy)
     '''
+    
+    short_name = 'GRD'
     
     def __init__(self):
         ''' constructor'''
@@ -91,6 +104,7 @@ class GrudgerStrategy(AbstractStrategy):
         Upon interacting, cooperate if the other agent has never not cooperated
         with this specific agent. If this is the first time of an interaction,
         cooperate
+        >>> from critters import Critter
         >>> g = Critter('g', GrudgerStrategy())
         >>> c1 = Critter('c1', None)
         >>> c2 = Critter('c1', None)
@@ -105,13 +119,15 @@ class GrudgerStrategy(AbstractStrategy):
         0
         '''
         if self.agents_to_grudge.count(other_agent.name): 
-            return GrudgerStrategy.UNCOOPERATE
-        return GrudgerStrategy.COOPERATE
+            return UNCOOPERATE
+        else:
+            return COOPERATE
     
     def observe_interaction(self, me, agent1, agent1_action, agent2, agent2_action):
         '''
         provides information to the strategy about what transpired in an interaction.
         Does not return anything
+        >>> from critters import Critter
         >>> grudger_strategy = GrudgerStrategy()
         >>> grudger = Critter('g1', grudger_strategy)
         >>> other_critter1 = Critter('c1', None)
@@ -124,11 +140,11 @@ class GrudgerStrategy(AbstractStrategy):
         ['c2']
         '''
         if agent1.name == me.name:
-            if agent2_action == GrudgerStrategy.UNCOOPERATE:
+            if agent2_action == UNCOOPERATE:
                 if self.agents_to_grudge.count(agent2.name) == 0:
                     self.agents_to_grudge.append(agent2.name)
         elif agent2.name == me.name:
-            if agent1_action == GrudgerStrategy.UNCOOPERATE:
+            if agent1_action == UNCOOPERATE:
                 if self.agents_to_grudge.count(agent1.name) == 0:
                     self.agents_to_grudge.append(agent1.name)
  
@@ -136,9 +152,12 @@ class TitForTatStrategy(AbstractStrategy):
     '''
     A strategy that will initially coperate with another agent, but will 
     punish an agent whose last action was to try to cheat tit for tat
+    >>> from critters import Critter
     >>> t4t_strategy = TitForTatStrategy()
     >>> t4t = Critter('t1', t4t_strategy)
     '''
+    
+    short_name = 'T4T'
     
     def __init__(self):
         ''' constructor'''
@@ -151,6 +170,7 @@ class TitForTatStrategy(AbstractStrategy):
         Upon interacting, cooperate if the other agent was last known to cooperate.
         If the other agent last cheated, cheat back
         If this is the first time of an interaction cooperate
+        >>> from critters import Critter
         >>> t = Critter('t', TitForTatStrategy())
         >>> c1 = Critter('c1', None)
         >>> c2 = Critter('c1', None)
@@ -167,12 +187,14 @@ class TitForTatStrategy(AbstractStrategy):
         '''
         if self.last_agent_interaction.has_key(other_agent.name): 
             return self.last_agent_interaction[other_agent.name]
-        return TitForTatStrategy.COOPERATE
+        else:
+            return COOPERATE
     
     def observe_interaction(self, me, agent1, agent1_action, agent2, agent2_action):
         '''
         provides information to the strategy about what transpired in an interaction.
         Does not return anything
+        >>> from critters import Critter
         >>> t4t_strategy = TitForTatStrategy()
         >>> t4t = Critter('t1', t4t_strategy)
         >>> other_critter1 = Critter('c1', None)
@@ -188,3 +210,8 @@ class TitForTatStrategy(AbstractStrategy):
             self.last_agent_interaction[agent2.name] = agent2_action
         elif agent2.name == me.name:
             self.last_agent_interaction[agent1.name] = agent1_action
+
+    
+if __name__ == '__main__':
+    import doctest
+    doctest.testmod()    

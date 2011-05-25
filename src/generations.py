@@ -4,7 +4,7 @@ Created on May 15, 2011
 
 @author: ben
 '''
-import sys, getopt, world
+import sys, getopt, world, plugins
 
 def main(argv):
     world_to_run = 'PrisonersDilemma'
@@ -30,10 +30,10 @@ def main(argv):
     print "running world %s" % world_to_run
     
     xworld = instantiate_world(world_to_run)
-    xworld.add_plugin(world.TabularReporter())
+    xworld.add_plugin(plugins.StrategyTabularReporter())
     
     if track_critter:
-        xworld.add_plugin(world.CritterTracker(track_critter))
+        xworld.add_plugin(plugins.CritterTracker(track_critter))
     xworld.run(iterations) 
     
     
