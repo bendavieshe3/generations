@@ -11,7 +11,20 @@ COOPERATE = 1
 class AbstractStrategy(object):
     '''A strategy that provides a response to events'''
     
-    short_name = 'ABS'
+    short_class_name = 'ABS'
+
+    def get_short_name(self):
+        '''
+        Return the short name to identify this strategy
+        >>> s1 = SuckerStrategy()
+        >>> s1.short_name
+        'SCK'
+        '''
+        return self.__class__.short_class_name
+
+
+    short_name = property(get_short_name)
+    
 
     def interact(self, other_agent):
         '''
@@ -34,11 +47,23 @@ class AbstractStrategy(object):
         
         '''
         pass
+    
+    def create_new(self):
+        '''
+        creates a new version of this strategy inheriting its traits (including
+        constructor arguments, but not instance variables)
+        >>> r1 = RandomStrategy(3)
+        >>> r1_1 = r1.create_new()
+        >>> r1_1.chance_to_cooperate
+        0.75
+        '''
+        return self.__class__()
+        
         
 class CheatStrategy(AbstractStrategy):
     '''A strategy that always fails to cooperate'''
     
-    short_name = 'CHT'
+    short_class_name = 'CHT'
     
     def interact(self, other_agent):
         '''
@@ -52,7 +77,7 @@ class CheatStrategy(AbstractStrategy):
 class SuckerStrategy(AbstractStrategy):
     '''A strategy that never fails to cooperate'''
     
-    short_name = 'SCK'
+    short_class_name = 'SCK'
     
     def interact(self, other_agent):
         '''
@@ -66,7 +91,40 @@ class SuckerStrategy(AbstractStrategy):
 class RandomStrategy(AbstractStrategy):
     '''A strategy that randomly decides to cooperate or not each time'''
     
-    short_name = 'RND'
+    short_class_name = 'RND'
+    
+    def __init__(self, cooperation_weight = 1):
+        self.cooperation_weight = cooperation_weight
+        self.chance_to_cooperate = self.calc_coop_chance(cooperation_weight)
+        super(AbstractStrategy, self).__init__()
+    
+    def get_short_name(self):
+        '''
+        Return the short name to identify this strategy
+        >>> r1 = RandomStrategy(3)
+        >>> r1.short_name
+        'RND_3'
+        '''
+        return '%s_%d' % (self.__class__.short_class_name,
+                          self.cooperation_weight)
+
+    short_name = property(get_short_name)
+    
+    def calc_coop_chance(self, coop_weight):
+        '''
+        determine the chance of cooperation given a cooperation weight and an
+        assumed uncooperate weight of 1. Thus:
+        >>> RandomStrategy().calc_coop_chance(1)
+        0.5
+        '''
+        return (float(coop_weight) / float(coop_weight + 1))
+    
+    def create_new(self):
+        ''' 
+        Create a new Random Strategy with the same chance to cooperate
+        '''
+        return self.__class__(self.cooperation_weight)
+        
     
     def interact(self, other_agent):
         '''
@@ -80,7 +138,10 @@ class RandomStrategy(AbstractStrategy):
         '''
         
         import random
-        return random.choice((COOPERATE, UNCOOPERATE))
+        if random.random() <= self.chance_to_cooperate:
+            return COOPERATE
+        else:
+            return UNCOOPERATE
 
 class GrudgerStrategy(AbstractStrategy):
     '''
@@ -91,7 +152,7 @@ class GrudgerStrategy(AbstractStrategy):
     >>> grudger = Critter('g1', grudger_strategy)
     '''
     
-    short_name = 'GRD'
+    short_class_name = 'GRD'
     
     def __init__(self):
         ''' constructor'''
@@ -157,7 +218,7 @@ class TitForTatStrategy(AbstractStrategy):
     >>> t4t = Critter('t1', t4t_strategy)
     '''
     
-    short_name = 'T4T'
+    short_class_name = 'T4T'
     
     def __init__(self):
         ''' constructor'''

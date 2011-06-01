@@ -7,7 +7,9 @@ import critters, strategies
 
 #constants
     
-ITERATION_FOOD_CONSUMPTION = 5
+ITERATION_FOOD_CONSUMPTION = 3
+
+FOOD_REQUIRED_TO_REPRODUCE = 150
 
 
 class Environment(object):
@@ -20,7 +22,7 @@ class Environment(object):
         >>> env = Environment()
         '''
         self.iteration_no = 0
-        self.population = list()
+        self.population = dict()
         self.strategy_counts = dict()
      
     def start_iteration(self):
@@ -32,12 +34,9 @@ class Environment(object):
         '''
         
         #all critters consume food
-        for critter in self.population:
-            critter.remove_food(ITERATION_FOOD_CONSUMPTION)
-            
-            #if a critter has 0 or less food, he dies :(
-            if critter.food <= 0:
-                self.population.remove(critter)
+        for critter in self.population.values():
+            critter.remove_food(ITERATION_FOOD_CONSUMPTION)                
+        
         
     def add_critter(self, critter):
         '''
@@ -47,12 +46,13 @@ class Environment(object):
         >>> sucker = critters.Critter('s1', strategies.SuckerStrategy())
         >>> cheater = critters.Critter('c1', strategies.CheatStrategy())
         >>> e.add_critter(sucker)
-        >>> len(e.population)
+        >>> len(e.population.values())
         1
         '''
         
-        if critter not in self.population:
-            self.population.append(critter)
+        if not self.population.has_key(critter.name):
+            self.population[critter.name] = critter
+            critter.add_listener(self)
         
         strategy = critter.strategy.short_name        
         if strategy not in self.strategy_counts:
@@ -66,6 +66,21 @@ class Environment(object):
         '''
         for critter in critter_list:
             self.add_critter(critter)
+    
+    def receive_event(self, source, event, data):
+        '''
+        Receive an event being listened for
+        '''
+        if event == critters.Critter.EVENT_DYING:
+            # a critter has died, remove him from the list
+            del self.population[source.name]
+            
+        elif event == critters.Critter.EVENT_REPRODUCING:
+            # a critter has reproduced, add the offspring to the list
+            self.add_critter(data['offspring'])
+            
+        else:
+            print 'Received unknown event "%s"' % event
     
 if __name__ == '__main__':
     import doctest

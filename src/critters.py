@@ -3,13 +3,77 @@ Created on May 16, 2011
 
 @author: bendavies
 '''
+#constants
+BASE_OBJECT_NAME = 'object'
+  
 
-class Critter(object):
+def get_new_id():
+    '''
+    determines a new id to assign to an object in the environment
+    >>> get_new_id()     # doctest:+ELLIPSIS, +SKIP
+    '''
+    EnvironmentObject.number_of += 1
+    return '%s_%d' % (BASE_OBJECT_NAME, EnvironmentObject.number_of)
+    
+class EnvironmentObject(object):
+    '''
+    A generic object within the environment. Ages with iterations and
+    can send events
+    '''
+    
+    #static variables
+    number_of = 0
+  
+    def __init__(self, name):
+        '''
+        Constructor
+        >>> o = EnvironmentObject(None)
+        >>> p = EnvironmentObject('peter')
+        >>> p.name 
+        'peter'
+        '''
+        self.name = name if name else get_new_id()
+        self.event_listener_map = dict()
+
+    def add_listener(self, listener, event='*'):
+        '''
+        Attaches a listener to the object for all or specific events
+        '''
+        if not self.event_listener_map.has_key(event):
+            self.event_listener_map[event] = list()
+        self.event_listener_map[event].append(listener)
+                
+    def send_event(self, source, event, data):
+        '''
+        Dispatches the provided event with the data to registered listeners 
+        for that event
+        '''
+        if self.event_listener_map.has_key(event):
+            for listener in self.event_listener_map[event]:
+                listener.receive_event(self, event, data)
+        if self.event_listener_map.has_key('*'):
+            for listener in self.event_listener_map['*']:
+                listener.receive_event(self, event, data)        
+
+class Listener(object):
+    ''' 
+    A generic listener
+    '''
+    
+    def receive_event(self, source, event, data):
+        pass
+
+class Critter(EnvironmentObject):
     '''
     An agent within the simulation
     '''
-    number_of = 0
-
+    
+    #events
+    EVENT_REPRODUCING = 'reproducing'
+    EVENT_DYING = 'dying'
+    
+    #other constants
+    FOOD_REQUIRED_TO_REPRODUCE = 1000
 
     def __init__(self, name, strategy):
         '''critter constructor
@@ -24,12 +88,9 @@ class Critter(object):
         'c2'
         '''
         self.food = 5
+        self.offspring = 0
         self.strategy = strategy
-        Critter.number_of += 1
-        if name is None:
-            self.name = "Critter_%d" % Critter.number_of
-        else:
-            self.name = name
+        super(Critter,self).__init__(name)
     
     def interact(self, other_critter):
         '''Interact with another critter
@@ -62,6 +123,9 @@ class Critter(object):
         15
         '''
         self.food += food_amount
+        
+        if self.food > Critter.FOOD_REQUIRED_TO_REPRODUCE:
+            self.reproduce()
     
     def remove_food(self, food_amount):
         '''
@@ -72,6 +136,29 @@ class Critter(object):
         -5
         '''      
         self.food -= food_amount
+        
+        if self.food <= 0:
+            self.send_event(self, Critter.EVENT_DYING, 
+                            {'cause':'starvation'})
+
+    def reproduce(self):
+        '''
+        Creates and returns one or more offspring
+        >>> import strategies
+        >>> c1 = Critter(None, strategies.CheatStrategy())
+        >>> c1_1 = c1.reproduce()
+        '''
+        
+        #update this critter
+        self.offspring += 1
+        self.remove_food(Critter.FOOD_REQUIRED_TO_REPRODUCE)
+        offspring_name = '%s_%d' % (self.name, self.offspring)
+        offspring = (Critter(offspring_name, self.strategy.create_new()))
+        
+        self.send_event(self, Critter.EVENT_REPRODUCING, 
+                        {'offspring':offspring})
+        
+        return offspring
 
 if __name__ == '__main__':
     import doctest

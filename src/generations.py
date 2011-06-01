@@ -9,7 +9,7 @@ import sys, getopt, world, plugins
 def main(argv):
     world_to_run = 'PrisonersDilemma'
     track_critter = None
-    iterations = 1500
+    iterations = 15
     try:
         opts, args = getopt.getopt(argv, 'ht:i:','--help,--track,--iterations')
         

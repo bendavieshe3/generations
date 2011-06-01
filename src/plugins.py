@@ -3,7 +3,7 @@ Created on May 24, 2011
 
 @author: bendavies
 '''
-import strategies
+import strategies, critters
     
     
 class EventPlugin(object):
@@ -26,7 +26,7 @@ class EventPlugin(object):
         change'''
         pass
     
-    def on_interaction_end(self, agent1, agent1_outcome, agent2, agent2_outcome):
+    def on_interaction_end(self, environment, agent1, agent1_outcome, agent2, agent2_outcome):
         '''called at the end of an interaction between two agents'''
         pass
     
@@ -110,6 +110,7 @@ class StrategyTabularReporter(EventPlugin):
                    if critter_count[strategy] == max_critters]
         
         print('winners are %s' % ''.join(winners))
+        
     
     def print_headers(self, environment):
         '''Write the headers'''
@@ -131,26 +132,32 @@ class StrategyTabularReporter(EventPlugin):
         
     def calculate_strategy_totals(self, environment):
         food_count = dict()
-        critter_count = dict()
         for strategy in environment.strategy_counts.keys():
             food_count[strategy] = 0
-            critter_count[strategy] = 0
             
-        for critter in environment.population:
+        for critter in environment.population.values():
             food_count[critter.strategy.short_name] += critter.food
-            critter_count[critter.strategy.short_name] += 1
+
+
         
-        return critter_count, food_count
+        return environment.strategy_counts, food_count
         
 class CritterTracker(EventPlugin):
     '''Keeps track of an individual critter and summarises their interaction at
     the conclusion of the environment'''
-    
+
+    #constants
+    LOG_ITEM_INTERACTION = 'interaction'
+    LOG_ITEM_DEATH = 'death'
+    LOG_ITEM_REPRODUCTION = 'reproduction'
+
     def __init__(self, critter_name):
         self.critter_name = critter_name
-        self.interactions = list()
+        self.log_items = list()
+        self.attached = False
+        self.iteration_no = 0
         super(CritterTracker, self).__init__()
- 
+  
     def on_environment_end(self, environment):
         '''
         Display a summary of what the tracked critter interacted
@@ -158,41 +165,97 @@ class CritterTracker(EventPlugin):
         UNCOOPERATE = strategies.UNCOOPERATE
         COOPERATE = strategies.COOPERATE
         
-        print 'Detailed interaction tracking of %s:' % self.critter_name
+        print 'Detailed tracking of %s:' % self.critter_name
         
-        for interaction in self.interactions:
-            our_action = interaction[1]
-            their_action = interaction[3]
-            their_name = interaction[2]
-            
-            if our_action == UNCOOPERATE and their_action == UNCOOPERATE:
-                outcome_description = 'had no interaction with'
-            elif our_action == COOPERATE and their_action == COOPERATE:
-                outcome_description = 'cooperated with'
-            elif our_action == COOPERATE:
-                outcome_description = 'was suckered by'
-            else:
-                outcome_description = 'cheated'
+        print '-Log Items:'
+
+        for log_item in self.log_items:
+            if log_item[0] == CritterTracker.LOG_ITEM_INTERACTION:
+                our_action = log_item[3]
+                their_action = log_item[5]
+                their_name = log_item[4]
+                iteration_no = log_item[1]
+                our_food = log_item[6]
                 
-            print '%s\t%d %d\t%s\t%s %s %s' % (self.critter_name, our_action,
-                                               their_action, their_name, 
-                                               self.critter_name, outcome_description, 
-                                               their_name)
-        
-    
-    def on_interaction_end(self, agent1, agent1_outcome, agent2, agent2_outcome):
-        '''called at the end of an interaction between two agents'''
-        if agent1.name == self.critter_name:
-            self.interactions.append((agent1.name,
-                                      agent1_outcome,
-                                      agent2.name,
-                                      agent2_outcome))               
-        elif agent2.name == self.critter_name:
-            self.interactions.append((agent2.name,
-                                      agent2_outcome,
-                                      agent1.name,
-                                      agent1_outcome))               
+                if our_action == UNCOOPERATE and their_action == UNCOOPERATE:
+                    outcome_description = 'had no interaction with'
+                elif our_action == COOPERATE and their_action == COOPERATE:
+                    outcome_description = 'cooperated with'
+                elif our_action == COOPERATE:
+                    outcome_description = 'was suckered by'
+                else:
+                    outcome_description = 'cheated'
+                    
+                print '%d:\t%s\t%d\t%d %d\t%s\t\t%s %s %s' % (iteration_no,
+                                                        self.critter_name, 
+                                                        our_food, 
+                                                        our_action,
+                                                        their_action, 
+                                                        their_name, 
+                                                        self.critter_name, 
+                                                        outcome_description, 
+                                                        their_name)
             
+            elif log_item[0] == CritterTracker.LOG_ITEM_DEATH:
+                print '%d:\tCritter %s has died' % (log_item[1],self.critter_name)
+            elif log_item[0] == CritterTracker.LOG_ITEM_REPRODUCTION:
+                print '%d:\tCritter %s begot critter %s' % (log_item[1], 
+                                                            self.critter_name, 
+                                                            log_item[2])
+            else:
+                print 'Unknown log item'
+                
+    def on_iteration_start(self, environment):
+        self.iteration_no = environment.iteration_no
+        
+        if not self.attached and environment.population.has_key(self.critter_name):
+            self.attach_to_critter(environment.population[self.critter_name])
+             
+    
+    
+    def on_interaction_end(self, environment, agent1, agent1_outcome, agent2, agent2_outcome):
+        '''called at the end of an interaction between two agents'''
+        
+        log_item = None
+        
+        if agent1.name == self.critter_name:
+            log_item = (CritterTracker.LOG_ITEM_INTERACTION,
+                        environment.iteration_no, 
+                        agent1.name,
+                        agent1_outcome,
+                        agent2.name,
+                        agent2_outcome,
+                        agent1.food)               
+        elif agent2.name == self.critter_name:
+            log_item = (CritterTracker.LOG_ITEM_INTERACTION,
+                        environment.iteration_no,
+                        agent2.name,
+                        agent2_outcome,
+                        agent1.name,
+                        agent1_outcome,
+                        agent2.food)               
+        
+        if log_item:    
+            self.log_items.append(log_item)
+        
+
+    def receive_event(self, source, event, data):
+        
+        if event == critters.Critter.EVENT_DYING:
+            self.log_items.append((CritterTracker.LOG_ITEM_DEATH, self.iteration_no))
+        elif event == critters.Critter.EVENT_REPRODUCING:
+            self.log_items.append((CritterTracker.LOG_ITEM_REPRODUCTION, 
+                                   self.iteration_no, 
+                                   data['offspring'].name))    
+            
+    def attach_to_critter(self, critter):
+        ''' 
+        Attach this critter tracker to a specific critter
+        '''
+        critter.add_listener(self, critters.Critter.EVENT_DYING)
+        critter.add_listener(self, critters.Critter.EVENT_REPRODUCING)
+        
+        self.attached = True
     
 if __name__ == '__main__':
     import doctest

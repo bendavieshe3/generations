@@ -3,6 +3,7 @@ Created on May 21, 2011
 
 @author: bendavies
 '''
+import random
 import critters, strategies, environment as env
 
 class World(object):
@@ -56,10 +57,11 @@ class World(object):
         for plugin in self.plugins:
             plugin.on_iteration_end(environment)
 
-    def send_interaction_end(self, agent1, agent1_outcome, agent2, agent2_outcome):
+    def send_interaction_end(self, environment, agent1, agent1_outcome, agent2, agent2_outcome):
         '''send interaction end events to registered plugins'''
         for plugin in self.plugins:
-            plugin.on_interaction_end(agent1, agent1_outcome,
+            plugin.on_interaction_end(environment, 
+                                      agent1, agent1_outcome,
                                       agent2, agent2_outcome)
     
     
@@ -70,7 +72,7 @@ class  PrisonersDilemmaWorld(World):
     decisions they are provided food
     '''
     
-    def run(self, iterations=1500):
+    def run(self, iterations=15):
         '''
         executes the world
         >>> world = PrisonersDilemmaWorld()
@@ -87,16 +89,17 @@ class  PrisonersDilemmaWorld(World):
         sucker = critters.Critter('s1', strategies.SuckerStrategy())
         cheater = critters.Critter('c1', strategies.CheatStrategy())
         random = critters.Critter('r1', strategies.RandomStrategy())
+        random2 = critters.Critter('r2', strategies.RandomStrategy(3))
         grudger = critters.Critter('g1', strategies.GrudgerStrategy())
         titter = critters.Critter('t1', strategies.TitForTatStrategy())
         
-        environment.add_critters((sucker, cheater, random, grudger, titter))
+        environment.add_critters((sucker, cheater, random, random2, grudger, titter))
         
         self.send_environment_start(environment)
-          
+        
         #execute iterations
-        for i in range(1, iterations + 1):
-            
+        for i in range(iterations):
+
             environment.start_iteration()
             
             self.send_iteration_start(environment)
@@ -122,7 +125,7 @@ class  PrisonersDilemmaWorld(World):
         >>> environment = env.Environment()
         >>> environment.add_critters((c1,c2))
         >>> world.run_iteration(environment)
-        >>> environment.population[1].food
+        >>> environment.population['c1'].food
         5
 
         '''
@@ -131,33 +134,56 @@ class  PrisonersDilemmaWorld(World):
         #print [(c1.name,c2.name) for (c1,c2) in interaction_list]
         
         for (c1, c2) in interaction_list:
-            self.interact_critters(c1,c2)
+            self.interact_critters(environment, c1,c2)
 
     def determine_interactions(self, population):
         '''determines which interactions will happen within the population'''
         
+        NUMBER_OF_INTERACTIONS = 5
+        
         interactions = list()
-        for critter in population:
-            for other_critter in population:
-                if (other_critter.name !=  critter.name and (critter,other_critter) not in interactions
-                and (other_critter,critter) not in interactions):
-                    interactions.append((critter, other_critter))
+        for critter in population.values():
+            
+            critters_to_interact_with = list(population.values())
+            critters_to_interact_with.remove(critter)
+            
+            for i in range(0, NUMBER_OF_INTERACTIONS):
+                
+                if len(critters_to_interact_with) > 0:
+                
+                    other_critter = random.choice(critters_to_interact_with)
+                    if (critter.name < other_critter.name and(critter,other_critter) not in interactions) or\
+                        (other_critter.name > critter.name and (other_critter, critter) not in interactions):
+                        
+                        if critter.name < other_critter.name:
+                            interactions.append((critter, other_critter))
+                        else:
+                            interactions.append((other_critter, critter))
+                        
+                        critters_to_interact_with.remove(other_critter)
+                          
         return interactions
 
 
-    def interact_critters(self, critter1, critter2):
+    def interact_critters(self, environment, critter1, critter2):
         '''
         executes an interaction between 2 critters. Based on their own 
         response to the interaction, each is rewarded food (or not) based on 
         their response
         >>> world = PrisonersDilemmaWorld()
         >>> c1 = critters.Critter('c1', strategies.CheatStrategy())
-        >>> c2 = critters.Critter('c2', strategies.CheatStrategy())
-        >>> world.interact_critters(c1,c2)
+        >>> s1 = critters.Critter('s1', strategies.SuckerStrategy())
+        >>> world.interact_critters(None,c1,s1)
+        >>> c1.food
+        35
+        >>> s1.food
+        4
+        
         '''
-        COOPERATE_FOOD = 3
-        CHEATER_FOOD = 5
+        COOPERATE_FOOD = 4
+        CHEATER_FOOD = 6
         SUCKER_FOOD = -1
+        PASSIVE_FOOD = 0
         
         COOPERATE = strategies.COOPERATE
         UNCOOPERATE = strategies.UNCOOPERATE
@@ -166,27 +192,31 @@ class  PrisonersDilemmaWorld(World):
         critter1_interaction = critter1.interact(critter2)
         critter2_interaction = critter2.interact(critter1)
         
-        if (critter1_interaction == COOPERATE & 
+        if (critter1_interaction == COOPERATE and 
             critter2_interaction == COOPERATE):
-            
+    
             critter1.add_food(COOPERATE_FOOD)
             critter2.add_food(COOPERATE_FOOD)
             
-        elif (critter1_interaction == UNCOOPERATE &
+        elif (critter1_interaction == UNCOOPERATE and
                  critter2_interaction == UNCOOPERATE):
             #neither gets food
-            pass
+    
+            critter1.add_food(PASSIVE_FOOD)
+            critter2.add_food(PASSIVE_FOOD)                
         else:
             #one cheated the other
+    
             if critter1_interaction == COOPERATE:
                 #critter1 is the sucker
                 critter1.add_food(SUCKER_FOOD)
                 critter2.add_food(CHEATER_FOOD)
+    
             else:
                 #critter2 is the sucker
                 critter2.add_food(SUCKER_FOOD)
                 critter1.add_food(CHEATER_FOOD)
-
+    
         #Critters observe the outcome
         critter1.observe_interaction(critter1,critter1_interaction,
                                      critter2,critter2_interaction)
@@ -194,7 +224,8 @@ class  PrisonersDilemmaWorld(World):
                                      critter2,critter2_interaction)
         
         #So do plugins!
-        self.send_interaction_end(critter1,critter1_interaction,
+        self.send_interaction_end(environment,
+                                  critter1,critter1_interaction,
                                   critter2,critter2_interaction)
 
     
