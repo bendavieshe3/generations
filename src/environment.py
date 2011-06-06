@@ -8,9 +8,7 @@ import critters, strategies
 #constants
     
 ITERATION_FOOD_CONSUMPTION = 3
-
-FOOD_REQUIRED_TO_REPRODUCE = 150
-
+ITERATION_AVAILABLE_FOOD = 1000
 
 class Environment(object):
     '''Hosts all of the objects in the simulation'''
@@ -24,6 +22,7 @@ class Environment(object):
         self.iteration_no = 0
         self.population = dict()
         self.strategy_counts = dict()
+        self.available_food = ITERATION_AVAILABLE_FOOD
      
     def start_iteration(self):
         self.iteration_no += 1
@@ -37,6 +36,11 @@ class Environment(object):
         for critter in self.population.values():
             critter.remove_food(ITERATION_FOOD_CONSUMPTION)                
         
+    def reset_food(self):
+        '''
+        Resets the amount of food available
+        '''
+        self.available_food = ITERATION_AVAILABLE_FOOD
         
     def add_critter(self, critter):
         '''
@@ -74,6 +78,7 @@ class Environment(object):
         if event == critters.Critter.EVENT_DYING:
             # a critter has died, remove him from the list
             del self.population[source.name]
+            self.strategy_counts[source.strategy.short_name] -= 1
             
         elif event == critters.Critter.EVENT_REPRODUCING:
             # a critter has reproduced, add the offspring to the list

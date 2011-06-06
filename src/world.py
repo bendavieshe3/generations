@@ -129,12 +129,18 @@ class  PrisonersDilemmaWorld(World):
         5
 
         '''
-    
+
+        environment.reset_food()
+        
         interaction_list = self.determine_interactions(environment.population)
         #print [(c1.name,c2.name) for (c1,c2) in interaction_list]
         
-        for (c1, c2) in interaction_list:
+        interaction_no = 0
+        while interaction_no < len(interaction_list) and environment.available_food > 0:
+        
+            (c1, c2) = interaction_list[interaction_no]
             self.interact_critters(environment, c1,c2)
+            interaction_no += 1
 
     def determine_interactions(self, population):
         '''determines which interactions will happen within the population'''
@@ -142,7 +148,7 @@ class  PrisonersDilemmaWorld(World):
         NUMBER_OF_INTERACTIONS = 5
         
         interactions = list()
-        for critter in population.values():
+        for critter in random.sample(population.values(), len(population)):
             
             critters_to_interact_with = list(population.values())
             critters_to_interact_with.remove(critter)
@@ -161,7 +167,7 @@ class  PrisonersDilemmaWorld(World):
                             interactions.append((other_critter, critter))
                         
                         critters_to_interact_with.remove(other_critter)
-                          
+                     
         return interactions
 
 
@@ -197,13 +203,17 @@ class  PrisonersDilemmaWorld(World):
     
             critter1.add_food(COOPERATE_FOOD)
             critter2.add_food(COOPERATE_FOOD)
+            environment.available_food -= 2 * COOPERATE_FOOD
             
         elif (critter1_interaction == UNCOOPERATE and
                  critter2_interaction == UNCOOPERATE):
             #neither gets food
     
             critter1.add_food(PASSIVE_FOOD)
-            critter2.add_food(PASSIVE_FOOD)                
+            critter2.add_food(PASSIVE_FOOD)
+            
+            environment.available_food -= 2 * PASSIVE_FOOD
+                            
         else:
             #one cheated the other
     
@@ -217,6 +227,7 @@ class  PrisonersDilemmaWorld(World):
                 critter2.add_food(SUCKER_FOOD)
                 critter1.add_food(CHEATER_FOOD)
     
+            environment.available_food -= (CHEATER_FOOD + SUCKER_FOOD)
         #Critters observe the outcome
         critter1.observe_interaction(critter1,critter1_interaction,
                                      critter2,critter2_interaction)

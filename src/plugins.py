@@ -76,8 +76,19 @@ class IndividualTabularReporter(EventPlugin):
 class StrategyTabularReporter(EventPlugin):
     '''Provides basic output summarising strategy level numbers to the std out'''
 
+    def __init__(self, iteration_reporting_interval=5, output_filename=None):
+        '''
+        Constructor
+        '''
+        self.reporting_interval = iteration_reporting_interval
+        self.output_filename = output_filename
+        self.file = None
+
     def on_environment_start(self, environment):
         '''called prior to the start of iterations with the initial environment'''
+        if self.output_filename:
+            self.file = open(self.output_filename, 'w')
+            
         self.print_headers(environment)
     
     def on_iteration_start(self, environment):
@@ -86,22 +97,27 @@ class StrategyTabularReporter(EventPlugin):
     
     def on_iteration_end(self, environment):
         '''called at the end of the iteration'''
-        if environment.iteration_no == 1 or environment.iteration_no % 5 == 0:
+        if (environment.iteration_no == 1 or environment.iteration_no % 
+            self.reporting_interval == 0):
+            
             self.print_iteration_line(environment)
     
     def on_environment_end(self, environment):
         '''called at the end of the simulation when the environment will no longer
         change'''
-        print 'Final Population Totals'
+        self.output_line('Final Population Totals')
         critter_count, food_count = self.calculate_strategy_totals(environment)
         
         self.print_iteration_line(environment)
         
         #print extra food totals line
-        header_line = 'p:\t'
+        header_line = 'food:\t'
+        total_food_in_population = 0
         for strategy in environment.strategy_counts.keys():
             header_line += '%s\t' % food_count[strategy]
-        print header_line
+            total_food_in_population += food_count[strategy]
+        header_line += '%d' % total_food_in_population
+        self.output_line(header_line)
                 
         self.print_headers(environment)
         
@@ -109,15 +125,19 @@ class StrategyTabularReporter(EventPlugin):
         winners = [strategy + ' ' for strategy in critter_count.keys()
                    if critter_count[strategy] == max_critters]
         
-        print('winners are %s' % ''.join(winners))
+        self.output_line('winners are %s' % ''.join(winners))
+        
+        if self.file:
+            self.file.close()
         
     
     def print_headers(self, environment):
         '''Write the headers'''
-        header_line = 'p:\t'
+        header_line = 'strat:\t'
         for strategy in environment.strategy_counts.keys():
             header_line += '%s\t' % strategy
-        print header_line
+        header_line += 'TOTAL'
+        self.output_line(header_line)
         
     def print_iteration_line(self, environment):
         '''Write a reporting line for the iteration with current food values'''        
@@ -125,10 +145,11 @@ class StrategyTabularReporter(EventPlugin):
         #work out strategy totals
         critter_count, food_count = self.calculate_strategy_totals(environment)
         
-        report_line = ('%d:\t' % environment.iteration_no)
+        report_line = ('%d\t' % environment.iteration_no)
         for strategy in environment.strategy_counts.keys():
             report_line += '%d\t' % critter_count[strategy]
-        print report_line
+        report_line += '%d' % len(environment.population)
+        self.output_line(report_line)
         
     def calculate_strategy_totals(self, environment):
         food_count = dict()
@@ -138,9 +159,16 @@ class StrategyTabularReporter(EventPlugin):
         for critter in environment.population.values():
             food_count[critter.strategy.short_name] += critter.food
 
-
-        
         return environment.strategy_counts, food_count
+    
+    def output_line(self, line):
+        '''
+        Outputs the provided line to the console, and, if configured, the 
+        reporting file
+        '''
+        print line
+        if self.file:
+            self.file.write('%s\n' % line)
         
 class CritterTracker(EventPlugin):
     '''Keeps track of an individual critter and summarises their interaction at

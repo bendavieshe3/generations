@@ -4,6 +4,8 @@ Created on May 16, 2011
 @author: bendavies
 '''
 #constants
+import random
+
 BASE_OBJECT_NAME = 'object'
   
 
@@ -74,6 +76,7 @@ class Critter(EnvironmentObject):
     
     #other constants
     FOOD_REQUIRED_TO_REPRODUCE = 1000
+    CHANCE_OF_RANDOM_MUTATION = 0.01 #1 percent
 
     def __init__(self, name, strategy):
         '''critter constructor
@@ -87,7 +90,7 @@ class Critter(EnvironmentObject):
         >>> critter2.name
         'c2'
         '''
-        self.food = 5
+        self.food = 10
         self.offspring = 0
         self.strategy = strategy
         super(Critter,self).__init__(name)
@@ -152,13 +155,38 @@ class Critter(EnvironmentObject):
         #update this critter
         self.offspring += 1
         self.remove_food(Critter.FOOD_REQUIRED_TO_REPRODUCE)
-        offspring_name = '%s_%d' % (self.name, self.offspring)
-        offspring = (Critter(offspring_name, self.strategy.create_new()))
+        
+        if random.random() <= Critter.CHANCE_OF_RANDOM_MUTATION:
+            #offspring is mutant
+            offspring = self.random_mutation()
+        else:
+            offspring_name = '%s_%d' % (self.name, self.offspring)
+            offspring = (Critter(offspring_name, self.strategy.create_new()))
         
         self.send_event(self, Critter.EVENT_REPRODUCING, 
                         {'offspring':offspring})
         
         return offspring
+    
+    def random_mutation(self):
+        '''
+        returns a randomly selected alternative 'mutant' offspring
+        with a randomly selected strategy
+        '''
+        import strategies
+        
+        sucker = Critter(None, strategies.SuckerStrategy())
+        cheater = Critter(None, strategies.CheatStrategy())
+        random1 = Critter(None, strategies.RandomStrategy())
+        random2 = Critter(None, strategies.RandomStrategy(3))
+        grudger = Critter(None, strategies.GrudgerStrategy())
+        titter = Critter(None, strategies.TitForTatStrategy())            
+        
+        possible_mutations = (sucker, cheater, random1, random2, grudger,
+                              titter)
+        return random.choice(possible_mutations)
+        
+            
 
 if __name__ == '__main__':
     import doctest
